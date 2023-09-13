@@ -1,6 +1,6 @@
 name: VapourCod3rZ RC
 
-run-name: "${{ inputs.EpLabel }} ${{ inputs.VidRes }} - Q${{ inputs.QScale }}/CPU${{ inputs.EncSpeed }} - ${{ inputs.ShowName }}"
+run-name: "${{ inputs.EpLabel }} - ${{ inputs.VidRes }} - Q${{ inputs.QScale }}/CPU${{ inputs.EncSpeed }} - ${{ inputs.ShowName }}"
 
 on:
   workflow_dispatch:
@@ -73,8 +73,9 @@ jobs:
 
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-      artchunk: ${{ steps.set-artmatrix.outputs.artchunk }}
-      artmatrix: ${{ steps.set-artmatrix.outputs.artmatrix }}
+      artchunk: ${{ steps.set-matrix.outputs.artchunk }}
+      artmatrix: ${{ steps.set-matrix.outputs.artmatrix }}
+      streamdar: ${{ steps.set-matrix.outputs.streamdar }}
 
     steps:
       - uses: actions/checkout@v3
@@ -96,39 +97,23 @@ jobs:
             done
           fi
           unset v w 2>/dev/null || true
-      - name: Create EncMatrix
+      - name: Create EncMatrix and ArtMatrix
         id: set-matrix
         run: |
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/LATEST\.txt" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
-          # Get Workflow Matrix Script w/ Conditional Script Patcher
+          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          # Get Workflow Matrix Scripts w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x21.matrixGen.sh; do
             curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
-          source ./x99.scriptPatcher.sh && rm ./x99.scriptPatcher.sh
+          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # Generate Workflow Matrix
-          source ./x21.matrixGen.sh
-          eval 'set -o history' 2>/dev/null
-      - name: Get artchunk and artmatrix
-        id: set-artmatrix
-        run: |
-          # Execute Script Stealthly
-          eval 'set -eo pipefail' 2>/dev/null
-          eval 'set +o history' 2>/dev/null
-          # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/LATEST\.txt" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
-          # Get Artifactory Matrix Script w/ Conditional Script Patcher
-          for sc in x99.scriptPatcher.sh x33.artGen.sh; do
-            curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
-          done
-          chmod a+x *.sh
-          source ./x99.scriptPatcher.sh && rm ./x99.scriptPatcher.sh
-          # Generate Artifactory Matrix
-          source ./x33.artGen.sh
+          source ${GITHUB_WORKSPACE}/x21.matrixGen.sh
+          source ${GITHUB_WORKSPACE}/x41.splitArtGen.sh
           eval 'set -o history' 2>/dev/null
 
   artuploader:
@@ -136,8 +121,6 @@ jobs:
     if: github.event.inputs.MergeOnly != 'true'
     runs-on: ubuntu-22.04
     needs: generator
-    outputs:
-      AspectRatio: ${{ steps.set-dar.outputs.AspectRatio }}
     strategy:
       fail-fast: true
       max-parallel: 8
@@ -172,31 +155,30 @@ jobs:
             done
           fi
           unset v w 2>/dev/null || true
-      - name: Download Media and Split into Parts
-        id: set-dar
+      - name: Download Splited Stream Chunks
         run: |
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/LATEST\.txt" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           # Get Artifact Spliiter Script w/ Conditional Script Patcher
-          for sc in x99.scriptPatcher.sh x37.splitGen.sh; do
+          for sc in x99.scriptPatcher.sh x53.artFetcher.sh; do
             curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
-          source ./x99.scriptPatcher.sh && rm ./x99.scriptPatcher.sh
-          # Generate Artifact Splits
-          source ./x37.splitGen.sh
+          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
+          # Download Specific Stream Chunk
+          source ${GITHUB_WORKSPACE}/x53.artFetcher.sh
           eval 'set -o history' 2>/dev/null
-      - name: Upload Source Media as Artifact
+      - name: Upload Stream Chunk as Artifact
         uses: actions/upload-artifact@v3
         continue-on-error: true
         with:
           name: artifact
           path: ~/data/${{env.ShowName}}.${{env.EpLabel}}.SOURCE.mkv.${{env.artnum}}
           retention-days: 5
-      - name: Upload Source Media as Artifact
+      - name: Upload Stream Chunk as Artifact
         if: failure()
         uses: actions/upload-artifact@v3
         with:
@@ -216,8 +198,9 @@ jobs:
       matrix:
         ChunkID: ${{fromJson(needs.generator.outputs.matrix)}}
     env:
+      VapourGen: true
       ChunkID: ${{ matrix.ChunkID }}
-      AspectRatio: ${{ needs.artuploader.outputs.AspectRatio }}
+      streamdar: ${{ needs.generator.outputs.streamdar }}
       VapourFilterZ_Hash: ${{ secrets.VapourFilterZ_Hash }}
 
     steps:
@@ -256,15 +239,16 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/LATEST\.txt" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x07.prepareContainer.sh x69.vapourGen.sh; do
             curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
-          source ./x99.scriptPatcher.sh && rm ./x99.scriptPatcher.sh
+          export VapourGen=true     # Extra Variable to help better Patch the EncVars
+          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # All-in-one Script for VapourCod3r vapourGen
-          source ./x69.vapourGen.sh
+          source ${GITHUB_WORKSPACE}/x69.vapourGen.sh
           eval 'set -o history' 2>/dev/null
       - name: Upload Av1an Error Log as Artifact
         if: failure()
@@ -307,15 +291,15 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/LATEST\.txt" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           # Get VapourCod3r xJoiner Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x89.xJoiner.sh; do
             curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
-          source ./x99.scriptPatcher.sh && rm ./x99.scriptPatcher.sh
+          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # VapourCod3r xJoiner for Final Encoded Video
-          source ./x89.xJoiner.sh
+          source ${GITHUB_WORKSPACE}/x89.xJoiner.sh
           eval 'set -o history' 2>/dev/null
       - name: Upload VapourCod3d Video Stream as Artifact
         if: success()
