@@ -15,7 +15,7 @@ on:
         type: string
         default: "S01E01"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=a|y=2 | minSCLenth=50 | QuickExit=true"
+        description: "Env Overrides (pipe-separated), x=a|y=2 | minSCLenth=50 | QuickExit=1"
         type: string
         required: false
       CleanWS:
@@ -76,7 +76,7 @@ jobs:
             curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
-          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
-          source ${GITHUB_WORKSPACE}/x09.sceneDetector.sh
+          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh || exit 1
+          source ${GITHUB_WORKSPACE}/x09.sceneDetector.sh || exit 1
           eval 'set -o history' 2>/dev/null
 

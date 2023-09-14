@@ -23,6 +23,7 @@ on:
         - "2"
         - "3"
         - "4"
+        default: "2"
       QScale:
         description: "QScale, 13~48"
         required: true
@@ -33,7 +34,7 @@ on:
         type: string
         default: "576p"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=a|y=2 | minSCLenth=50 | LiveAction=true | QuickExit=true"
+        description: "Env Overrides (pipe-separated), x=a|y=2 | minSCLenth=50 | LiveAction=true | QuickExit=1"
         type: string
         required: false
       ForceRecode:
@@ -73,7 +74,6 @@ jobs:
 
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-      artchunk: ${{ steps.set-matrix.outputs.artchunk }}
       artmatrix: ${{ steps.set-matrix.outputs.artmatrix }}
       streamdar: ${{ steps.set-matrix.outputs.streamdar }}
 
@@ -106,14 +106,14 @@ jobs:
           # Get GIST latest Revision number
           export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           # Get Workflow Matrix Scripts w/ Conditional Script Patcher
-          for sc in x99.scriptPatcher.sh x21.matrixGen.sh; do
+          for sc in x99.scriptPatcher.sh x21.matrixGen.sh x41.splitArtGen.sh; do
             curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # Generate Workflow Matrix
-          source ${GITHUB_WORKSPACE}/x21.matrixGen.sh
-          source ${GITHUB_WORKSPACE}/x41.splitArtGen.sh
+          source ${GITHUB_WORKSPACE}/x21.matrixGen.sh || exit 1
+          source ${GITHUB_WORKSPACE}/x41.splitArtGen.sh || exit 1
           eval 'set -o history' 2>/dev/null
 
   artuploader:
@@ -129,7 +129,6 @@ jobs:
 
     env:
       artnum: ${{ matrix.artnum }}
-      artchunk: ${{ needs.generator.outputs.artchunk }}
 
     steps:
       - uses: actions/checkout@v3
@@ -169,7 +168,7 @@ jobs:
           chmod a+x *.sh
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # Download Specific Stream Chunk
-          source ${GITHUB_WORKSPACE}/x53.artFetcher.sh
+          source ${GITHUB_WORKSPACE}/x53.artFetcher.sh || exit 1
           eval 'set -o history' 2>/dev/null
       - name: Upload Stream Chunk as Artifact
         uses: actions/upload-artifact@v3
@@ -185,6 +184,7 @@ jobs:
           name: artifact
           path: ~/data/${{env.ShowName}}.${{env.EpLabel}}.SOURCE.mkv.${{env.artnum}}
           retention-days: 5
+          if-no-files-found: ignore
 
   synthesizer:
     name: "Vapour Synthesizer"
@@ -248,7 +248,7 @@ jobs:
           export VapourGen=true     # Extra Variable to help better Patch the EncVars
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # All-in-one Script for VapourCod3r vapourGen
-          source ${GITHUB_WORKSPACE}/x69.vapourGen.sh
+          source ${GITHUB_WORKSPACE}/x69.vapourGen.sh || exit 1
           eval 'set -o history' 2>/dev/null
       - name: Upload Av1an Error Log as Artifact
         if: failure()
@@ -299,7 +299,7 @@ jobs:
           chmod a+x *.sh
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # VapourCod3r xJoiner for Final Encoded Video
-          source ${GITHUB_WORKSPACE}/x89.xJoiner.sh
+          source ${GITHUB_WORKSPACE}/x89.xJoiner.sh || exit 1
           eval 'set -o history' 2>/dev/null
       - name: Upload VapourCod3d Video Stream as Artifact
         if: success()
