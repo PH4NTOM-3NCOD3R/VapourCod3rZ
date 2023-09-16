@@ -29,16 +29,24 @@ on:
         required: true
         type: number
       VidRes:
-        description: "VidRes, 480p|854x | 540p|960x | 576p|1024x|1024x576 | 720p|1280x"
+        description: "VidRes, 480p|854x / 540p|960x / 576p|1024x|1024x576 / 720p|1280x"
         required: true
         type: string
         default: "576p"
+      EncPhase:
+        description: "Encoding Phase, 0(Full) / 1(First Half) / 2(Second Half)"
+        required: true
+        type: choice
+        options:
+        - "0"
+        - "1"
+        - "2"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=a|y=2 | minSCLenth=50 | LiveAction=true | QuickExit=1"
+        description: "Env Overrides (pipe-separated), x=someValue | minSCLenth=50 | LiveAction=true | ForceRetry=true | QuickExit=1"
         type: string
         required: false
       ForceRecode:
-        description: "ForceRecode Previous Chunks"
+        description: "Force Recode All Previous Chunks"
         required: true
         type: boolean
         default: false
@@ -60,6 +68,7 @@ env:
   EncSpeed: ${{ github.event.inputs.EncSpeed }}
   QScale: ${{ github.event.inputs.QScale }}
   VidRes: ${{ github.event.inputs.VidRes }}
+  EncPhase: ${{ github.event.inputs.EncPhase }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
   ForceRecode: ${{ github.event.inputs.ForceRecode }}
   MergeOnly: ${{ github.event.inputs.MergeOnly }}
@@ -118,7 +127,7 @@ jobs:
 
   artuploader:
     name: "Vapour Artifactory"
-    if: github.event.inputs.MergeOnly != 'true'
+    if: ( github.event.inputs.MergeOnly != 'true' || github.event.inputs.EncPhase != '1' )
     runs-on: ubuntu-22.04
     needs: generator
     strategy:
@@ -261,7 +270,7 @@ jobs:
 
   merger:
     name: "Synthesized Video Joiner"
-    if: ( github.event.inputs.MergeOnly == 'true' && !cancelled() ) || success()
+    if: ( ( github.event.inputs.MergeOnly == 'true' && !cancelled() ) || success() ) && github.event.inputs.EncPhase != '1'
     runs-on: ubuntu-22.04
     needs: [generator, synthesizer]
 
