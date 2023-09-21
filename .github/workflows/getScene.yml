@@ -30,6 +30,7 @@ env:
   EpLabels: ${{ github.event.inputs.EpLabels }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
   VapourCoderZRC_Hash: ${{ secrets.VapourCoderZRC_Hash }}
+  VapourFilterZ_Hash: ${{ secrets.VapourFilterZ_Hash }}
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
 
 jobs:
@@ -70,10 +71,10 @@ jobs:
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           for sc in x99.scriptPatcher.sh x07.prepareContainer.sh x09.sceneDetector.sh; do
-            curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh || exit 1

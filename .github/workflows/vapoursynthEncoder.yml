@@ -119,10 +119,13 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
           # Get Workflow Matrix Scripts w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x21.matrixGen.sh x41.splitArtGen.sh; do
-            curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            set -x
+            curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            set +x
           done
           chmod a+x *.sh
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
@@ -171,10 +174,11 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
           # Get Artifact Spliiter Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x53.artFetcher.sh; do
-            curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
@@ -256,10 +260,11 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x07.prepareContainer.sh x69.vapourGen.sh; do
-            curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
           export VapourGen=true     # Extra Variable to help better Patch the EncVars
@@ -308,10 +313,11 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
           # Get VapourCod3r xJoiner Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x89.xJoiner.sh; do
-            curl -fsSL "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
@@ -325,5 +331,5 @@ jobs:
           path: ~/data/${{env.ShowName}}.${{env.EpLabel}}.*.AV1-fr3aky.mkv   # Match ${FinalEncodedVideo} name
           name: ${{env.ShowName}}.${{env.EpLabel}}.Q${{env.QScale}}.VapourCod3d.Result
           if-no-files-found: warn
-          retention-days: 5
+          retention-days: 7
 
