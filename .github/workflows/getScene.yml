@@ -1,12 +1,12 @@
 name: Scene Detector
 
-run-name: "VScDetect - ${{ inputs.ShowName }} @ ${{ inputs.EpLabels }}"
+run-name: "ScDetect - ${{ inputs.ShowName }} @ ${{ inputs.EpLabels }}"
 
 on:
   workflow_dispatch:
     inputs:
       ShowName:
-        description: "Anime/Show Name, cleanly formated, see 'VapourCoderZRC_Hash/x01.showList.txt'"
+        description: "Anime/Movie/Show Name, Cleanly Formated, See 'VapourCoderZRC_Hash/x01.showList.txt'"
         required: true
         type: string
       EpLabels:
@@ -15,11 +15,11 @@ on:
         type: string
         default: "S01E01"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=a|y=2 | minSCLenth=50 | QuickExit=1"
+        description: "Env Overrides (pipe-separated), x=someValue | minSCLenth=36 | QuickExit=1"
         type: string
         required: false
       CleanWS:
-        description: "Clean Workspace with slimhub_actions"
+        description: "Clean WorkSpaces w/ slimhub_actions"
         type: boolean
         default: false
         required: false
@@ -71,13 +71,12 @@ jobs:
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
-          export latestRevision=$(curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           for sc in x99.scriptPatcher.sh x07.prepareContainer.sh x09.sceneDetector.sh; do
-            curl -sL --retry 8 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
-          chmod a+x *.sh
-          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh || exit 1
+          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           source ${GITHUB_WORKSPACE}/x09.sceneDetector.sh || exit 1
           eval 'set -o history' 2>/dev/null
 
