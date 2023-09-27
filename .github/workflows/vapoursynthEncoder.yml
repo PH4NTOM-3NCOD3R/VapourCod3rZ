@@ -1,4 +1,4 @@
-name: VapourCod3rZ RC
+name: VapourCod3rZ v3.1
 
 run-name: "${{ inputs.EpLabel }} - ${{ inputs.VidRes }} - Q${{ inputs.QScale }}/CPU${{ inputs.EncSpeed }} - ${{ inputs.ShowName }}"
 
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       ShowName:
-        description: "Anime/Movie/Show Name, Cleanly Formated, See 'VapourCoderZRC_Hash/x01.showList.txt'"
+        description: "Anime/Movie/Show Name, Cleanly Formated @VapourCoderZRC_Hash/x01.showList.txt"
         required: true
         type: string
       EpLabel:
@@ -72,7 +72,7 @@ env:
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
   ForceRecode: ${{ github.event.inputs.ForceRecode }}
   MergeOnly: ${{ github.event.inputs.MergeOnly }}
-  VapourCoderZRC_Hash: ${{ secrets.VapourCoderZRC_Hash }}
+  VapourCoderZRC_Hash: ${{ secrets.VapourCoderZRC31_Hash }}
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
 
 jobs:
@@ -123,9 +123,7 @@ jobs:
           echo -e "latestRevision == ${latestRevision}\n"
           # Get Workflow Matrix Scripts w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x21.matrixGen.sh x41.splitArtGen.sh; do
-            set -x
             curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
-            set +x
           done
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # Generate Workflow Matrix
@@ -289,7 +287,7 @@ jobs:
           source ${GITHUB_WORKSPACE}/x71.vapourGen.sh || exit 1
           eval 'set -o history' 2>/dev/null
       - name: Upload Av1an Error Log as Artifact
-        if: failure()
+        if: failure() && env.AbortSwitch != 'QuickExit'
         uses: actions/upload-artifact@v3
         with:
           path: ~/data/enclog.log
