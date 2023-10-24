@@ -29,8 +29,7 @@ env:
   ShowName: ${{ github.event.inputs.ShowName }}
   EpLabels: ${{ github.event.inputs.EpLabels }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
-  VapourCoderZRC_Hash: ${{ secrets.VapourCoderZRC31_Hash }}
-  VapourFilterZ_Hash: ${{ secrets.VapourFilterZ_Hash }}
+  VapourCoderZRC_Hash: ${{ secrets.VapourCoderZRC32a_Hash }}
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
 
 jobs:
@@ -73,7 +72,7 @@ jobs:
           eval 'set +o history' 2>/dev/null
           export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
-          for sc in x99.scriptPatcher.sh x07.testContainer.sh x09.sceneDetector.sh; do
+          for sc in x99.scriptPatcher.sh x07.testContainer.sh x09.sceneDetector.sh x13.filterGen.sh; do
             curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh

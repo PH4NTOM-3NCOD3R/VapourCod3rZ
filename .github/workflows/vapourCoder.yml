@@ -1,6 +1,6 @@
-name: VapourCod3rZ v3.1
+name: VapourCod3rZ v3.2a
 
-run-name: "${{ inputs.EpLabel }} - ${{ inputs.VidRes }} - Q${{ inputs.QScale }}/CPU${{ inputs.EncSpeed }} - ${{ inputs.ShowName }}"
+run-name: "${{ inputs.Encod3r }} | ${{ inputs.EpLabel }} - ${{ inputs.VidRes }} - QScale${{ inputs.QScale }} / EncPreset ${{ inputs.EncPreset }} - ${{ inputs.ShowName }}"
 
 on:
   workflow_dispatch:
@@ -10,22 +10,31 @@ on:
         required: true
         type: string
       EpLabel:
-        description: "EpLabel, S0[0-9]E[0-9][0-9] | EpFull"
+        description: "EpLabel, S0[0-9]E[0-9][0-9][.*] | EpFull"
         required: true
         type: string
         default: "S01E01"
-      EncSpeed:
-        description: "EncSpeed"
+      Encod3r:
+        description: "Encod3r"
         required: true
         type: choice
         options:
-        - "1"
-        - "2"
-        - "3"
-        - "4"
-        default: "2"
+        - "AV01"
+        - "HVC1"
+        default: "AV01"
+      EncPreset:
+        description: "Enc Preset"
+        required: true
+        type: choice
+        options:
+        - "1-placebo"
+        - "2-veryslow"
+        - "3-slower"
+        - "4-slow"
+        - "5-medium"
+        default: "2-veryslow"
       QScale:
-        description: "QScale, 13~48"
+        description: "QScale Value, 13~48"
         required: true
         type: number
       VidRes:
@@ -42,14 +51,9 @@ on:
         - "1"
         - "2"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=someValue | minSCLenth=36 | LiveAction=true | ForceRetry=true | QuickExit=1"
+        description: "Env Overrides (pipe-separated), x=someValue | minSCLenth=36 | QuickExit=1 | LiveAction=true | ForceRetry=true | ForceRecode=true"
         type: string
         required: false
-      ForceRecode:
-        description: "Force Recode All Previous Chunks"
-        required: true
-        type: boolean
-        default: false
       MergeOnly:
         description: "Only Merge Previously Encoded File"
         required: false
@@ -65,14 +69,14 @@ env:
   VSCODER: "true"
   ShowName: ${{ github.event.inputs.ShowName }}
   EpLabel: ${{ github.event.inputs.EpLabel }}
-  EncSpeed: ${{ github.event.inputs.EncSpeed }}
+  Encod3r: ${{ github.event.inputs.Encod3r }}
+  EncPreset: ${{ github.event.inputs.EncPreset }}
   QScale: ${{ github.event.inputs.QScale }}
   VidRes: ${{ github.event.inputs.VidRes }}
   EncPhase: ${{ github.event.inputs.EncPhase }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
-  ForceRecode: ${{ github.event.inputs.ForceRecode }}
   MergeOnly: ${{ github.event.inputs.MergeOnly }}
-  VapourCoderZRC_Hash: ${{ secrets.VapourCoderZRC31_Hash }}
+  VapourCoderZRC_Hash: ${{ secrets.VapourCoderZRC32a_Hash }}
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
 
 jobs:
@@ -213,7 +217,6 @@ jobs:
       VapourGen: true
       ChunkID: ${{ matrix.ChunkID }}
       streamdar: ${{ needs.generator.outputs.streamdar }}
-      VapourFilterZ_Hash: ${{ secrets.VapourFilterZ_Hash }}
 
     steps:
       - uses: actions/checkout@v3
@@ -246,7 +249,25 @@ jobs:
             done
           fi
           unset v w 2>/dev/null || true
+      - name: VapourChecker - PreEncode Check
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null
+          eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
+          for sc in x99.scriptPatcher.sh x61.vapourCheck.sh; do
+            curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+          done
+          # All-in-one Script for VapourCod3r vapourGen
+          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
+          source ${GITHUB_WORKSPACE}/x61.vapourCheck.sh || exit 1
+          echo "Skipper=${Skipper:-false}" >>$GITHUB_ENV
+          eval 'set -o history' 2>/dev/null
       - name: VapourCod3r - Prepare Docker Container
+        if: env.Skipper != 'true'
         run: |
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
@@ -263,13 +284,13 @@ jobs:
           echo "AbortSwitch=${AbortSwitch}" >>$GITHUB_ENV
           eval 'set -o history' 2>/dev/null
       - name: Download Source Media from Artifact
-        if: success() && env.AbortSwitch != 'QuickExit'
+        if: success() && env.AbortSwitch != 'QuickExit' && env.Skipper != 'true'
         uses: actions/download-artifact@v3
         with:
           name: artifact
           path: ~/data/artifact/
       - name: VapourCod3r - Chunk ${{env.ChunkID}} from ${{env.ShowName}} ${{env.EpLabel}}
-        if: success() && env.AbortSwitch != 'QuickExit'
+        if: success() && env.AbortSwitch != 'QuickExit' && env.Skipper != 'true'
         run: |
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
@@ -278,7 +299,7 @@ jobs:
           export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
-          for sc in x99.scriptPatcher.sh x07.testContainer.sh x71.vapourGen.sh; do
+          for sc in x99.scriptPatcher.sh x13.filterGen.sh x71.vapourGen.sh; do
             curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
           done
           export VapourGen=true     # Extra Variable to help better Patch the EncVars
@@ -287,7 +308,7 @@ jobs:
           source ${GITHUB_WORKSPACE}/x71.vapourGen.sh || exit 1
           eval 'set -o history' 2>/dev/null
       - name: Upload Av1an Error Log as Artifact
-        if: failure() && env.AbortSwitch != 'QuickExit'
+        if: failure() && env.AbortSwitch != 'QuickExit' && env.Skipper != 'true'
         uses: actions/upload-artifact@v3
         with:
           path: ~/data/enclog.log
