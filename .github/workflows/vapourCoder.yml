@@ -1,6 +1,6 @@
 name: VapourCod3rZ v3.2a
 
-run-name: "${{ inputs.Encod3r }} | ${{ inputs.EpLabel }} - ${{ inputs.VidRes }} - QScale${{ inputs.QScale }} / EncPreset ${{ inputs.EncPreset }} - ${{ inputs.ShowName }}"
+run-name: "${{ inputs.Encod3r }}/${{ inputs.EpLabel }}/${{ inputs.VidRes }}/QScale${{ inputs.QScale }}/${{ inputs.EncPreset }} - ${{ inputs.ShowName }}"
 
 on:
   workflow_dispatch:
@@ -362,7 +362,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v3
         with:
-          path: ~/data/${{env.ShowName}}.${{env.EpLabel}}.*.AV1-fr3aky.mkv   # Match ${FinalEncodedVideo} name
+          path: ~/data/${{env.ShowName}}.${{env.EpLabel}}.*-fr3aky.mkv   # Match ${FinalEncodedVideo} name
           name: ${{env.ShowName}}.${{env.EpLabel}}.Q${{env.QScale}}.VapourCod3d.Result
           if-no-files-found: warn
           retention-days: 7
