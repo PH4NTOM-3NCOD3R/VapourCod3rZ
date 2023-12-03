@@ -1,4 +1,4 @@
-name: VapourCod3rZ v3.2a
+name: VapourCod3rZ v4a
 
 run-name: "${{ inputs.Encod3r }}/${{ inputs.EpLabel }}/${{ inputs.VidRes }}/QScale${{ inputs.QScale }}/${{ inputs.EncPreset }} - ${{ inputs.ShowName }}"
 
@@ -6,16 +6,16 @@ on:
   workflow_dispatch:
     inputs:
       ShowName:
-        description: "Anime/Movie/Show Name, Cleanly Formated @VapourCoderZRC_Hash/x01.showList.txt"
+        description: "Anime/Movie/Show Name, @VapourCoderZ4a_Hash/x01.showList.txt"
         required: true
         type: string
       EpLabel:
-        description: "EpLabel, S0[0-9]E[0-9][0-9][.*] | EpFull"
+        description: "EpLabel, S0[0-9]E[0-9][0-9][.*] / EpFull"
         required: true
         type: string
         default: "S01E01"
       Encod3r:
-        description: "Encod3r"
+        description: "Encod3r, AV01 / HVC1"
         required: true
         type: choice
         options:
@@ -43,15 +43,27 @@ on:
         type: string
         default: "576p"
       EncPhase:
-        description: "Encoding Phase, 0(Full) / 1(First Half) / 2(Second Half)"
+        description: "Encoding Phase, 1 / 2[ab] / 3[abc] / 4[abcd] / 5[abcde]"
         required: true
         type: choice
         options:
-        - "0"
         - "1"
-        - "2"
+        - "2a"
+        - "2b"
+        - "3a"
+        - "3b"
+        - "3c"
+        - "4a"
+        - "4b"
+        - "4c"
+        - "4d"
+        - "5a"
+        - "5b"
+        - "5c"
+        - "5d"
+        - "5e"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=someValue | minSCLenth=36 | QuickExit=1 | LiveAction=true | ForceRetry=true | ForceRecode=true"
+        description: "Env Overrides (pipe-separated), x=someVal / minSCLenth=36 / QuickExit=1 / LiveAction=true / ForceRetry=true / ForceRecode=true / ZoneOpt=true"
         type: string
         required: false
       MergeOnly:
@@ -60,7 +72,7 @@ on:
         type: boolean
         default: false
       CleanWS:
-        description: "Clean WorkSpaces w/ slimhub_actions"
+        description: "Clean Workspace with slimhub_actions"
         type: boolean
         default: false
         required: false
@@ -76,7 +88,7 @@ env:
   EncPhase: ${{ github.event.inputs.EncPhase }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
   MergeOnly: ${{ github.event.inputs.MergeOnly }}
-  VapourCoderZRC_Hash: ${{ secrets.VapourCoderZRC32a_Hash }}
+  VapourScriptAddr: "https://gist.github.com/rokibhasansagar/${{ secrets.VapourCoderZ4a_Hash }}"
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
 
 jobs:
@@ -87,6 +99,7 @@ jobs:
 
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrixJobCount: ${{ steps.set-matrix.outputs.matrixJobCount }}
       artmatrix: ${{ steps.set-matrix.outputs.artmatrix }}
       streamdar: ${{ steps.set-matrix.outputs.streamdar }}
 
@@ -123,11 +136,11 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get Workflow Matrix Scripts w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x21.matrixGen.sh x41.splitArtGen.sh; do
-            curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
           done
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # Generate Workflow Matrix
@@ -175,11 +188,11 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get Artifact Spliiter Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x53.artFetcher.sh; do
-            curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
           done
           chmod a+x *.sh
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
@@ -255,11 +268,11 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x61.vapourCheck.sh; do
-            curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
           done
           # All-in-one Script for VapourCod3r vapourGen
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
@@ -273,11 +286,11 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
           for sc in x07.testContainer.sh x63.dockerPrep.sh; do
-            curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
           done
           # All-in-one Script for VapourCod3r vapourGen
           source ${GITHUB_WORKSPACE}/x63.dockerPrep.sh || exit 1
@@ -296,11 +309,11 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x13.filterGen.sh x71.vapourGen.sh; do
-            curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
           done
           export VapourGen=true     # Extra Variable to help better Patch the EncVars
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
@@ -318,9 +331,12 @@ jobs:
 
   merger:
     name: "Synthesized Video Joiner"
-    if: ( ( github.event.inputs.MergeOnly == 'true' && !cancelled() ) || success() ) && github.event.inputs.EncPhase != '1'
+    if: ( ( github.event.inputs.MergeOnly == 'true' && !cancelled() ) || success() ) && ( github.event.inputs.EncPhase == '1' || github.event.inputs.EncPhase == '2b' || github.event.inputs.EncPhase == '3c' || github.event.inputs.EncPhase == '4b' || github.event.inputs.EncPhase == '5e' )
     runs-on: ubuntu-22.04
     needs: [generator, synthesizer]
+
+    env:
+      matrixJobCount: ${{ needs.generator.outputs.matrixJobCount }}
 
     steps:
       - uses: actions/checkout@v4
@@ -348,16 +364,17 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get VapourCod3r xJoiner Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x89.xJoiner.sh; do
-            curl -sL --retry 5 --retry-connrefused "https://gist.github.com/rokibhasansagar/${VapourCoderZRC_Hash}/raw/${latestRevision}/${sc}" -O
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
           done
           source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
           # VapourCod3r xJoiner for Final Encoded Video
           source ${GITHUB_WORKSPACE}/x89.xJoiner.sh || exit 1
           eval 'set -o history' 2>/dev/null
+      #> TODO: Add SSIMULCRA2 Score Generation Scripting, As A New Job Step
       - name: Upload VapourCod3d Video Stream as Artifact
         if: success()
         uses: actions/upload-artifact@v3
