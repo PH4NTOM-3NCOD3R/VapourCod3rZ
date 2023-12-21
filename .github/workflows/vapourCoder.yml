@@ -15,13 +15,14 @@ on:
         type: string
         default: "S01E01"
       Encod3r:
-        description: "Encod3r, AV01 / HVC1"
+        description: "Encod3r, AOM / SVT / 265"
         required: true
         type: choice
         options:
-        - "AV01"
-        - "HVC1"
-        default: "AV01"
+        - "AOM"
+        - "SVT"
+        - "265"
+        default: "AOM"
       EncPreset:
         description: "Enc Preset"
         required: true
@@ -136,7 +137,7 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get Workflow Matrix Scripts w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x21.matrixGen.sh x41.splitArtGen.sh; do
@@ -188,7 +189,7 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get Artifact Spliiter Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x53.artFetcher.sh; do
@@ -268,7 +269,7 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x61.vapourCheck.sh; do
@@ -286,7 +287,7 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
           for sc in x07.testContainer.sh x63.dockerPrep.sh; do
@@ -309,7 +310,7 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get All-in-one VapourCod3r Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x13.filterGen.sh x71.vapourGen.sh; do
@@ -331,7 +332,7 @@ jobs:
 
   merger:
     name: "Synthesized Video Joiner"
-    if: ( ( github.event.inputs.MergeOnly == 'true' && !cancelled() ) || success() ) && ( github.event.inputs.EncPhase == '1' || github.event.inputs.EncPhase == '2b' || github.event.inputs.EncPhase == '3c' || github.event.inputs.EncPhase == '4b' || github.event.inputs.EncPhase == '5e' )
+    if: ( ( github.event.inputs.MergeOnly == 'true' && !cancelled() ) || success() ) && ( github.event.inputs.EncPhase == '1' || github.event.inputs.EncPhase == '2b' || github.event.inputs.EncPhase == '3c' || github.event.inputs.EncPhase == '4d' || github.event.inputs.EncPhase == '5e' )
     runs-on: ubuntu-22.04
     needs: [generator, synthesizer]
 
@@ -364,7 +365,7 @@ jobs:
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
           # Get GIST latest Revision number
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           # Get VapourCod3r xJoiner Script w/ Conditional Script Patcher
           for sc in x99.scriptPatcher.sh x89.xJoiner.sh; do
@@ -377,10 +378,11 @@ jobs:
       #> TODO: Add SSIMULCRA2 Score Generation Scripting, As A New Job Step
       - name: Upload VapourCod3d Video Stream as Artifact
         if: success()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          path: ~/data/${{env.ShowName}}.${{env.EpLabel}}.*-fr3aky.mkv   # Match ${FinalEncodedVideo} name
+          path: ~/data/${{env.FinalEncodedVideo}}
           name: ${{env.ShowName}}.${{env.EpLabel}}.Q${{env.QScale}}.VapourCod3d.Result
           if-no-files-found: warn
           retention-days: 7
+          compression-level: 0
 

@@ -15,7 +15,7 @@ on:
         type: string
         default: "S01E01"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=someVal / minSCLenth=36 / QuickExit=1 / Probe=false"
+        description: "Env Overrides (pipe-separated), x=someVal / minSCLenth=36 / QuickExit=1 / Probe=false / SCDebug=true"
         type: string
         required: false
       CleanWS:
@@ -75,7 +75,7 @@ jobs:
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
-          export latestRevision=$(curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}" | grep "/README\.md" | awk -F'/raw/' '{print $2}' | awk -F'/' '{print $1}')
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
           for sc in x99.scriptPatcher.sh x07.testContainer.sh x09.sceneDetector.sh x13.filterGen.sh; do
             curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
