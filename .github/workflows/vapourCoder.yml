@@ -334,7 +334,6 @@ jobs:
           # VapourCod3r xJoiner for Final Encoded Video
           source ${GITHUB_WORKSPACE}/x89.xJoiner.sh || exit 1
           eval 'set -o history' 2>/dev/null
-      #> TODO: Add SSIMULCRA2 Score Generation Scripting, As A New Job Step
       - name: Upload VapourCod3d Video Stream as Artifact
         if: success()
         uses: actions/upload-artifact@v4
@@ -344,4 +343,31 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
           compression-level: 0
+      - name: Clean Workspace with slimhub_actions
+        if: github.event.inputs.CleanWS == 'true'
+        continue-on-error: true
+        uses: rokibhasansagar/slimhub_actions@main
+        with:
+          retain: "docker_buildkit"
+      - name: Login to Docker Hub
+        if: success()
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: SSIMULACRA2 Score Generation
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null
+          eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          # Get VapourCod3r xJoiner Script w/ Conditional Script Patcher
+          for sc in x91.scoreTester.sh x93.videoScoreCalculator.py; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          # SSIMULACRA2 Tester for Final Encoded Video
+          source ${GITHUB_WORKSPACE}/x91.scoreTester.sh || exit 1
+          eval 'set -o history' 2>/dev/null
 
