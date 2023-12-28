@@ -25,7 +25,7 @@ on:
         required: false
 
 env:
-  SCDETECT: "true"
+  StateZ: "SCD"
   ShowName: ${{ github.event.inputs.ShowName }}
   EpLabels: ${{ github.event.inputs.EpLabels }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}

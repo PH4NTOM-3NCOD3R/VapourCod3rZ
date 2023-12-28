@@ -79,7 +79,7 @@ on:
         required: false
 
 env:
-  VSCODER: "true"
+  StateZ: "ENC"
   ShowName: ${{ github.event.inputs.ShowName }}
   EpLabel: ${{ github.event.inputs.EpLabel }}
   Encod3r: ${{ github.event.inputs.Encod3r }}
@@ -253,8 +253,13 @@ jobs:
         with:
           name: artifact
           path: ~/data/artifact/
+      - name: Check Artifacts
+        run: |
+          if [[ $(ls ~/data/artifact/*.mkv* 2>/dev/null | wc -l) -lt 1 ]]; then
+            echo "ReArtifact=true" >>$GITHUB_ENV
+          fi
       - name: (Retry) Download Source Media from Artifact
-        if: failure() && env.AbortSwitch != 'QuickExit' && env.Skipper != 'true'
+        if: env.AbortSwitch != 'QuickExit' && env.Skipper != 'true' && env.ReArtifact == 'true'
         uses: actions/download-artifact@v4
         with:
           name: artifact
