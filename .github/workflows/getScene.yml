@@ -1,4 +1,4 @@
-name: SceneDetector v4b
+name: SceneDetector v4x
 
 run-name: "ScDetect - ${{ inputs.ShowName }} @ ${{ inputs.EpLabels }}"
 
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       ShowName:
-        description: "Anime/Movie/Show Name, @VapourCoderZ4a_Hash/x01.showList.txt"
+        description: "Anime/Movie/Show Name, @VapourCoderZ4x_Hash/x01.showList.txt"
         required: true
         type: string
       EpLabels:
@@ -15,13 +15,8 @@ on:
         type: string
         default: "S01E01"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=someVal / minSCLenth=36 / QuickExit=1 / Probe=false / SCDebug=true"
+        description: "Env Overrides (pipe-separated), x=someVal / minSCLenth=36 / QuickExit=1 / Probe=false / SCDebug=true / slimRoot=1"
         type: string
-        required: false
-      CleanWS:
-        description: "Clean Workspaces with slimhub_actions"
-        type: boolean
-        default: false
         required: false
 
 env:
@@ -29,7 +24,7 @@ env:
   ShowName: ${{ github.event.inputs.ShowName }}
   EpLabels: ${{ github.event.inputs.EpLabels }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
-  VapourScriptAddr: "https://gist.github.com/rokibhasansagar/${{ secrets.VapourCoderZ4b_Hash }}"
+  VapourScriptAddr: "https://gist.github.com/rokibhasansagar/${{ secrets.VapourCoderZ4x_Hash }}"
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
 
 jobs:
@@ -48,11 +43,6 @@ jobs:
           git_cookies: "no"
         env:
           PAT: ${{ secrets.GH_TOKEN }}
-      - name: Clean Workspace with slimhub_actions
-        if: github.event.inputs.CleanWS == 'true'
-        uses: rokibhasansagar/slimhub_actions@main
-        with:
-          retain: "docker_buildkit"
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -70,7 +60,18 @@ jobs:
             done
           fi
           unset v w 2>/dev/null || true
+      - name: Maximize Space at /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null
+          eval 'set +o history' 2>/dev/null
+          export ROOT_RESERVE_MB=${ROOT_RESERVE_MB:-8192} TEMP_RESERVE_MB=${TEMP_RESERVE_MB:-512} SWAP_SIZE_MB=${SWAP_SIZE_MB:-12288}
+          export cleanerAddr="https://gist.github.com/rokibhasansagar/27271d28d0d6fa2d4a8d3b6253ffb5cd"
+          export cleanRef=$(git ls-remote -q "${cleanerAddr}" HEAD | awk '{print $1}')
+          curl -sL --retry 8 --retry-connrefused "${cleanerAddr}/raw/${cleanRef}/maximize.space.sh" | bash 2>/dev/null
+          eval 'set -o history' 2>/dev/null
       - name: Run SCDetect Script
+        working-directory: /data
         run: |
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
@@ -80,15 +81,7 @@ jobs:
           for sc in x99.scriptPatcher.sh x07.testContainer.sh x09.sceneDetector.sh x13.filterGen.sh; do
             curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
           done
-          source ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh && rm ${GITHUB_WORKSPACE}/x99.scriptPatcher.sh
-          source ${GITHUB_WORKSPACE}/x09.sceneDetector.sh || exit 1
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x09.sceneDetector.sh || exit 1
           eval 'set -o history' 2>/dev/null
-      - name: Upload SCDetect Results as Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{env.ShowName}}.${{env.EpLabel}}.SCDetect.Result
-          path: ~/data/${{env.ShowName}}.${{env.EpLabel}}.SceneData*.txz
-          retention-days: 10
-          compression-level: 0
-          if-no-files-found: warn
 
