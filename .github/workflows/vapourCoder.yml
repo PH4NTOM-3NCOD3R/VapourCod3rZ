@@ -1,6 +1,6 @@
 name: VapourCod3rZ v4x
 
-run-name: "${{ inputs.Encod3r }}/${{ inputs.EpLabel }}/${{ inputs.VidRes }}/QScale${{ inputs.QScale }}/${{ inputs.EncPreset }} - ${{ inputs.ShowName }}"
+run-name: "${{ inputs.Encod3r }}/${{ inputs.EpLabel }}/${{ inputs.VidRes }}/P${{ inputs.EncPreset }}/Q${{ inputs.QScale }} - ${{ inputs.ShowName }}"
 
 on:
   workflow_dispatch:
@@ -28,12 +28,12 @@ on:
         required: true
         type: choice
         options:
-        - "1-placebo"
-        - "2-veryslow"
-        - "3-slower"
-        - "4-slow"
-        - "5-medium"    # DEPRECATED
-        default: "2-veryslow"
+        - "1"
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+        default: "3"
       QScale:
         description: "QScale Value, 19~48"
         required: true
@@ -211,7 +211,7 @@ jobs:
           # Execute Script Stealthly
           eval 'set -eo pipefail' 2>/dev/null
           eval 'set +o history' 2>/dev/null
-          export ROOT_RESERVE_MB=${ROOT_RESERVE_MB:-12288} TEMP_RESERVE_MB=${TEMP_RESERVE_MB:-512} SWAP_SIZE_MB=${SWAP_SIZE_MB:-18432}
+          export ROOT_RESERVE_MB=${ROOT_RESERVE_MB:-12288} TEMP_RESERVE_MB=${TEMP_RESERVE_MB:-512} SWAP_SIZE_MB=${SWAP_SIZE_MB:-20480}
           export cleanerAddr="https://gist.github.com/rokibhasansagar/27271d28d0d6fa2d4a8d3b6253ffb5cd"
           export cleanRef=$(git ls-remote -q "${cleanerAddr}" HEAD | awk '{print $1}')
           curl -sL --retry 8 --retry-connrefused "${cleanerAddr}/raw/${cleanRef}/maximize.space.sh" | bash 2>/dev/null
@@ -255,17 +255,6 @@ jobs:
       - name: Download Source Media from Artifact
         if: success() && env.AbortSwitch != 'QuickExit' && env.Skipper != 'true'
         continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: artifact
-          path: /data/app/artifact/
-      - name: Check Artifacts
-        run: |
-          if [[ $(ls /data/app/artifact/*.mkv* 2>/dev/null | wc -l) -lt 1 ]]; then
-            echo "ReArtifact=true" >>$GITHUB_ENV
-          fi
-      - name: (Retry) Download Source Media from Artifact
-        if: env.AbortSwitch != 'QuickExit' && env.Skipper != 'true' && env.ReArtifact == 'true'
         uses: actions/download-artifact@v4
         with:
           name: artifact
