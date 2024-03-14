@@ -64,9 +64,14 @@ on:
         - "5d"
         - "5e"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=someVal / minSCLenth=36 / QuickExit=1 / LiveAction=true / ForceRecode=true / ZoneOpt=true / slimRoot=1"
+        description: "Env Overrides (pipe-separated), x=someVal / minSCLenth=36 / QuickExit=1 / LiveAction=true / ForceRecode=true / slimRoot=1"
         type: string
         required: false
+      ZoneOpt:
+        description: "Zonefile Optimized Re-Encode"
+        type: boolean
+        required: true
+        default: false
       MergeOnly:
         description: "Only Merge Previously Encoded File"
         required: false
@@ -83,6 +88,7 @@ env:
   VidRes: ${{ github.event.inputs.VidRes }}
   EncPhase: ${{ github.event.inputs.EncPhase }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
+  ZoneOpt: ${{ github.event.inputs.ZoneOpt }}
   MergeOnly: ${{ github.event.inputs.MergeOnly }}
   VapourScriptAddr: "https://gist.github.com/rokibhasansagar/${{ secrets.VapourCoderZ4x_Hash }}"
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
