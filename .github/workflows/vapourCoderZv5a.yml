@@ -1,0 +1,607 @@
+name: VapourCod3rZ v5.Alpha - F4S7
+
+run-name: "F4S7 ${{inputs.F4S7Qual}}/${{inputs.EncPhase}} - ${{inputs.Encod3r}} - ${{inputs.EpLabel}}/${{inputs.VidRes}}/P${{inputs.EncPreset}}/Q${{inputs.QScale}} - ${{inputs.ShowName}}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ShowName:
+        description: "[Anime|Movie|Show] Name, @VapourCoderZ5x_Hash/x01.showList.txt"
+        required: true
+        type: string
+      EpLabel:
+        description: "EpLabel, S0[0-9]E[0-9][0-9][.*] / EpFull"
+        required: true
+        type: string
+        default: "S01E01"
+      Encod3r:
+        description: "Encod3r, AOM / SVT / 265"
+        required: true
+        type: choice
+        options: ["AOM", "SVT", "265"]
+        default: "SVT"
+      EncPreset:
+        description: "F4S7 EncPreset"
+        required: true
+        type: choice
+        options: ["3", "4", "5", "6", "7", "8"]
+        default: "5"
+      QScale:
+        description: "F4S7 Quant/CRF Value, 25.0 ~ 50.0"
+        required: true
+        type: number
+      F4S7Qual:
+        description: "Quality Differenciator for F4S7 Pass"
+        required: true
+        type: choice
+        options: ["FQ90", "FQ80", "FQ60", "FQ50"]   # [Target Quality: FQ70]
+        default: "FQ50"
+      VidRes:
+        description: "VidRes, 854x|480p / 960x|540p / 1024x|1024x576|576p / 1280x|720p / 1920x|1080p"
+        required: true
+        type: string
+        default: "720p"
+      EncPhase:
+        description: "Encoding Phase, 1 / 2[ab] / 3[abc] / 4[abcd] / 5[abcde]"
+        required: true
+        type: choice
+        options: ["1", "2a", "2b", "3a", "3b", "3c", "4a", "4b", "4c", "4d", "5a", "5b", "5c", "5d", "5e"]
+      MergeOnly:
+        description: "Only Merge Previously Encoded Scenes"
+        required: false
+        type: boolean
+        default: false
+      CustomEnvs:
+        description: "Env Overrides (pipe-separated), minSCLenth=36 | LiveAction=true | ForceRecode=true | MatrixOvr=???[+???] | FILTER=false | slimRoot=1 | SafeDockerTag=xxx.xxx | runID4Art/runID4Flt=631929376"
+        type: string
+        required: false
+
+env:
+  QuickExit: true
+  ZoneOpt: false
+  SelfRunID: ${{ github.run_id }}
+  ShowName: ${{ github.event.inputs.ShowName }}
+  EpLabel: ${{ github.event.inputs.EpLabel }}
+  Encod3r: ${{ github.event.inputs.Encod3r }}
+  EncPreset: ${{ github.event.inputs.EncPreset }}
+  QScale: ${{ github.event.inputs.QScale }}
+  F4S7Qual: ${{ github.event.inputs.F4S7Qual }}
+  VidRes: ${{ github.event.inputs.VidRes }}
+  EncPhase: ${{ github.event.inputs.EncPhase }}
+  MergeOnly: ${{ github.event.inputs.MergeOnly }}
+  CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
+  VapourScriptAddr: "https://gist.github.com/rokibhasansagar/${{ secrets.VapourCoderZ5x_Hash }}"
+  RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
+  VapourDockerImage: "fr3akyphantom/xvapoursynth-av1an-rt"
+
+# FIXME: Introduce re-useable workflows, as the job steps are identical for F4S7 and F1N4L
+
+jobs:
+  generator:
+    name: "Job Matrix Preparation"
+    if: github.event.inputs.MergeOnly != 'true'
+    runs-on: ubuntu-22.04
+
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      matrixJobCount: ${{ steps.set-matrix.outputs.matrixJobCount }}
+      streamdar: ${{ steps.set-matrix.outputs.streamdar }}
+      runID4Art: ${{ steps.set-matrix.outputs.runID4Art }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'main'
+      - name: GitHub Auth
+        uses: rokibhasansagar/custom_workflows/git_config@main
+        env:
+          PAT: ${{ secrets.GH_TOKEN }}
+      - name: Custom Env Patcher
+        if: github.event.inputs.CustomEnvs != ''
+        run: |
+          # Prepare Custom Env Var Overrides
+          if [[ ${CustomEnvs} != '' ]]; then
+            for i in $(sed 's/|/\n/g' <<<"${CustomEnvs}"); do
+              v=$(awk -F'=' '{print $1}' <<<"${i}")
+              w=$(cut -d'=' -f2- <<<"${i}" | sed 's#"##g')
+              echo "$v=$w" >>$GITHUB_ENV
+            done
+          fi
+          unset v w 2>/dev/null || true
+      - name: Maximize Space at /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          export ROOT_RESERVE_MB=${ROOT_RESERVE_MB:-12288} TEMP_RESERVE_MB=${TEMP_RESERVE_MB:-512} SWAP_SIZE_MB=${SWAP_SIZE_MB:-8192}
+          export cleanerAddr="https://gist.github.com/rokibhasansagar/27271d28d0d6fa2d4a8d3b6253ffb5cd"
+          export cleanRef=$(git ls-remote -q "${cleanerAddr}" HEAD | awk '{print $1}')
+          curl -sL --retry 8 --retry-connrefused "${cleanerAddr}/raw/${cleanRef}/maximize.space.sh" | bash 2>/dev/null
+          eval 'set -o history' 2>/dev/null
+      - name: Create EncMatrix and Optionally Upload Split Chunks
+        working-directory: /data
+        id: set-matrix
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x99.scriptPatcher.sh x21.matrixGen.sh x41.splitArtGen.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x21.matrixGen.sh || exit 1
+          source /data/x41.splitArtGen.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+      - name: Prepare Docker Container for Artifact
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x07.testContainer.sh x53.dockerPrep.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x53.dockerPrep.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+        env:
+          jobIdentifier: "generator"
+      - name: Upload localVS.tar.gz as Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: localVS
+          path: /data/localVS.tar.gz
+          retention-days: 10
+          compression-level: 0
+      - name: Upload Scene JSON as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenejson
+          path: /data/scenes.json
+          retention-days: 10
+          compression-level: 9
+      - name: Upload Source Media Parts as Artifact
+        if: env.runID4Art == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact
+          path: /data/app/videos/${{env.ShowName}}.${{env.EpLabel}}.SOURCE.mkv.*
+          retention-days: 10
+          compression-level: 0
+
+  synthesizer:
+    name: "Vapour Synthesizer"
+    if: github.event.inputs.MergeOnly != 'true' && ( !cancelled() || success() )
+    runs-on: ubuntu-22.04
+    needs: generator
+
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        ChunkIDs: ${{fromJson(needs.generator.outputs.matrix)}}
+    env:
+      ChunkIDs: ${{ matrix.ChunkIDs }}
+      streamdar: ${{ needs.generator.outputs.streamdar }}
+      matrixJobCount: ${{ needs.generator.outputs.matrixJobCount }}
+      runID4Art: ${{ needs.generator.outputs.runID4Art }}
+      SourceName: ${{ github.event.inputs.ShowName }}.${{ github.event.inputs.EpLabel }}.SOURCE.mkv
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'main'
+      - name: GitHub Auth
+        uses: rokibhasansagar/custom_workflows/git_config@main
+        env:
+          PAT: ${{ secrets.GH_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Custom Env Patcher
+        if: github.event.inputs.CustomEnvs != ''
+        run: |
+          # Prepare Custom Env Var Overrides
+          if [[ ${CustomEnvs} != '' ]]; then
+            for i in $(sed 's/|/\n/g' <<<"${CustomEnvs}"); do
+              v=$(awk -F'=' '{print $1}' <<<"${i}")
+              w=$(cut -d'=' -f2- <<<"${i}" | sed 's#"##g')
+              echo "$v=$w" >>$GITHUB_ENV
+            done
+          fi
+          unset v w 2>/dev/null || true
+      - name: Maximize Space at /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          export ROOT_RESERVE_MB=${ROOT_RESERVE_MB:-12288} TEMP_RESERVE_MB=${TEMP_RESERVE_MB:-512} SWAP_SIZE_MB=${SWAP_SIZE_MB:-20480}
+          export cleanerAddr="https://gist.github.com/rokibhasansagar/27271d28d0d6fa2d4a8d3b6253ffb5cd"
+          export cleanRef=$(git ls-remote -q "${cleanerAddr}" HEAD | awk '{print $1}')
+          curl -sL --retry 8 --retry-connrefused "${cleanerAddr}/raw/${cleanRef}/maximize.space.sh" | bash 2>/dev/null
+          eval 'set -o history' 2>/dev/null
+      - name: Download localVS.tar.gz from Artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: localVS
+          path: /data/
+      - name: Prepare Docker Container
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x07.testContainer.sh x53.dockerPrep.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x53.dockerPrep.sh || exit 1
+          if [[ ${AbortSwitch} == "QuickExit" ]]; then exit 1; fi
+          eval 'set -o history' 2>/dev/null
+        env:
+          jobIdentifier: "synthesizer"
+      - name: Download Scene JSON from Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: scenejson
+          path: /data/app/tmp/
+          #> as /data/app/tmp/scenes.json
+      - name: DualChunk Checker
+        run: |
+          # Check if the Job requires to run for 2 Scenes or Not
+          if grep -q "+" 2>/dev/null <<<"${ChunkIDs}"; then
+            echo -e "[i] The Job requires to run for 2 Scenes"
+            echo "DualChunk=true" >>$GITHUB_ENV
+          fi
+      - name: Work With First ChunkID
+        working-directory: /data
+        run: |
+          export ChunkID=${ChunkIDs//+*}
+          export ChunkID=$(printf %.4d ${ChunkID})
+          echo "ChunkID=${ChunkID}" >>$GITHUB_ENV
+      - name: VapourChecker - PreEncCheck for Chunk ${{env.ChunkID}}/${{env.matrixJobCount}}
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x99.scriptPatcher.sh x61.vapourCheck.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x61.vapourCheck.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+      - name: Try Downloading Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+        if: env.Skipper != 'true' && env.runID4Flt != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{env.EpLabel}}.${{env.VidResH}}p.${{env.ChunkID}}.ffv1"
+          #> ${FilteredVideoChunk} | "${ShowName}.${EpLabel}.${VidResH}p.vapourfiltered.${ChunkID}.ffv1.mkv"
+          path: /data/app/artifact/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4Flt }}
+      - name: ChunkID1 Filtered Scene PreCheck
+        if: env.Skipper != 'true'
+        run: |
+          # Check if Filtered Scene is present
+          if [[ -s "/data/app/artifact/${FilteredVideoChunk}" ]]; then
+            mv -vf "/data/app/artifact/${FilteredVideoChunk}" /data/app/videos/
+            ( rm -rf /data/app/artifact/ ) || true
+            echo -e "[+] /data/app/videos/${FilteredVideoChunk} is placed"
+            echo "ffv1Generator=false" >>$GITHUB_ENV
+          else
+            echo -e "[-] /data/app/videos/${FilteredVideoChunk} is not available"
+            echo "ffv1Generator=true" >>$GITHUB_ENV
+          fi
+      - name: Download Source Media Parts from Artifact
+        if: ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art == ''
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: /data/app/artifact/
+          # github-token: ${{ secrets.GH_TOKEN }}
+          # run-id: ${{ github.run_id }}
+      - name: Download Source Media Parts from Artifact @ runID4Art
+        if: ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: /data/app/artifact/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4Art }}
+      - name: FilterGenZ - Chunk ${{env.ChunkID}} from ${{env.ShowName}} ${{env.EpLabel}}
+        if: ( env.Skipper != 'true' && env.ffv1Generator != 'false' )
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x99.scriptPatcher.sh x13.filterGen.sh x72.ffv1Gen{,.dscript}.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x72.ffv1Gen.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+        env:
+          StateZ: "FLT"   # Replaces FilterGen=true
+      - name: Upload Filtered Scene (y4m > ffv1 mkv) as artifact
+        if: success() && ( env.Skipper != 'true' && env.ffv1Upload == 'true' )
+        uses: actions/upload-artifact@v4
+        with:
+          path: "/data/app/videos/${{env.FilteredVideoChunk}}"
+          name: "${{env.EpLabel}}.${{env.VidResH}}p.${{env.ChunkID}}.ffv1"
+          retention-days: 10
+          compression-level: 1
+      - name: VapourCod3r - Chunk ${{env.ChunkID}} from ${{env.ShowName}} ${{env.EpLabel}}
+        if: success() && env.Skipper != 'true'
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x99.scriptPatcher.sh x73.vapourGen{,.dscript}.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x73.vapourGen.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+        env:
+          StateZ: "ENC"   # Replaces VapourGen=true, used by x99.scriptPatcher.sh
+      - name: Work With Second ChunkID, if avavilable
+        if: env.DualChunk == 'true'
+        working-directory: /data
+        run: |
+          export ChunkID=${ChunkIDs//*+}
+          export ChunkID=$(printf %.4d ${ChunkID})
+          echo "ChunkID=${ChunkID}" >>$GITHUB_ENV
+        env:
+          Skipper: "false"
+      - name: VapourChecker - PreEncCheck for Chunk ${{env.ChunkID}}/${{env.matrixJobCount}}
+        if: env.DualChunk == 'true'
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x99.scriptPatcher.sh x61.vapourCheck.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x61.vapourCheck.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+      - name: Try Downloading Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+        if: env.DualChunk == 'true' && ( env.Skipper != 'true' && env.runID4Flt != '' )
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{env.EpLabel}}.${{env.VidResH}}p.${{env.ChunkID}}.ffv1"
+          #> ${FilteredVideoChunk} | "${ShowName}.${EpLabel}.${VidResH}p.vapourfiltered.${ChunkID}.ffv1.mkv"
+          path: /data/app/artifact/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4Flt }}
+      - name: ChunkID2 Filtered Scene PreCheck
+        if: env.DualChunk == 'true' && env.Skipper != 'true'
+        run: |
+          # Check if Filtered Scene is present
+          if [[ -s "/data/app/artifact/${FilteredVideoChunk}" ]]; then
+            mv -vf "/data/app/artifact/${FilteredVideoChunk}" /data/app/videos/
+            ( rm -rf /data/app/artifact/ ) || true
+            echo -e "[+] /data/app/videos/${FilteredVideoChunk} is placed"
+            echo "ffv1Generator=false" >>$GITHUB_ENV
+          else
+            echo -e "[-] /data/app/videos/${FilteredVideoChunk} is not available"
+            echo "ffv1Generator=true" >>$GITHUB_ENV
+          fi
+      - name: Download Source Media Parts from Artifact
+        if: env.DualChunk == 'true' && env.HasSourceVideo != 'true' && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art == ''
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: /data/app/artifact/
+          # github-token: ${{ secrets.GH_TOKEN }}
+          # run-id: ${{ github.run_id }}
+      - name: Download Source Media Parts from Artifact @ runID4Art
+        if: env.DualChunk == 'true' && env.HasSourceVideo != 'true' && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: /data/app/artifact/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4Art }}
+      - name: FilterGenZ - Chunk ${{env.ChunkID}} from ${{env.ShowName}} ${{env.EpLabel}}
+        if: env.DualChunk == 'true' && ( env.Skipper != 'true' && env.ffv1Generator != 'false' )
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x99.scriptPatcher.sh x13.filterGen.sh x72.ffv1Gen{,.dscript}.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x72.ffv1Gen.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+        env:
+          StateZ: "FLT"   # Replaces FilterGen=true
+      - name: Upload Filtered Scene (y4m > ffv1 mkv) as artifact
+        if: success() && env.DualChunk == 'true' && ( env.Skipper != 'true' && env.ffv1Upload == 'true' )
+        uses: actions/upload-artifact@v4
+        with:
+          path: "/data/app/videos/${{env.FilteredVideoChunk}}"
+          name: "${{env.EpLabel}}.${{env.VidResH}}p.${{env.ChunkID}}.ffv1"
+          retention-days: 10
+          compression-level: 1
+      - name: VapourCod3r - Chunk ${{env.ChunkID}} from ${{env.ShowName}} ${{env.EpLabel}}
+        if: success() && env.DualChunk == 'true' && env.Skipper != 'true'
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x99.scriptPatcher.sh x73.vapourGen{,.dscript}.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x73.vapourGen.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+        env:
+          StateZ: "ENC"   # Replaces VapourGen=true, used by x99.scriptPatcher.sh
+
+  merger:
+    name: "Synthesized Video Joiner"
+    if: |
+      ( ( github.event.inputs.MergeOnly == 'true' && !cancelled() ) || success() ) &&
+      ( github.event.inputs.EncPhase == '1' || github.event.inputs.EncPhase == '2b' || github.event.inputs.EncPhase == '3c' || github.event.inputs.EncPhase == '4d' || github.event.inputs.EncPhase == '5e' )
+    runs-on: ubuntu-22.04
+    needs: [generator, synthesizer]
+
+    env:
+      matrixJobCount: ${{ needs.generator.outputs.matrixJobCount }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 'main'
+      - name: GitHub Auth
+        uses: rokibhasansagar/custom_workflows/git_config@main
+        env:
+          PAT: ${{ secrets.GH_TOKEN }}
+      - name: Custom Env Patcher
+        if: github.event.inputs.CustomEnvs != ''
+        run: |
+          # Prepare Custom Env Var Overrides
+          if [[ ${CustomEnvs} != '' ]]; then
+            for i in $(sed 's/|/\n/g' <<<"${CustomEnvs}"); do
+              v=$(awk -F'=' '{print $1}' <<<"${i}")
+              w=$(cut -d'=' -f2- <<<"${i}" | sed 's#"##g')
+              echo "$v=$w" >>$GITHUB_ENV
+            done
+          fi
+          unset v w 2>/dev/null || true
+      - name: Maximize Space at /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          export ROOT_RESERVE_MB=${ROOT_RESERVE_MB:-12288} TEMP_RESERVE_MB=${TEMP_RESERVE_MB:-512} SWAP_SIZE_MB=${SWAP_SIZE_MB:-16384}
+          export cleanerAddr="https://gist.github.com/rokibhasansagar/27271d28d0d6fa2d4a8d3b6253ffb5cd"
+          export cleanRef=$(git ls-remote -q "${cleanerAddr}" HEAD | awk '{print $1}')
+          curl -sL --retry 8 --retry-connrefused "${cleanerAddr}/raw/${cleanRef}/maximize.space.sh" | bash 2>/dev/null
+          eval 'set -o history' 2>/dev/null
+      - name: Joiner for VapourCod3d ${{env.ShowName}} ${{env.EpLabel}}
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x99.scriptPatcher.sh x89.xJoiner.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
+          source /data/x89.xJoiner.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+      - name: Upload VapourCod3d Video Stream as Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          path: /data/${{env.FinalEncodedVideo}}
+          name: ${{env.ShowName}}.${{env.EpLabel}}.Q${{env.QScale}}.VapourCod3d.Result
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 0
+      - name: Try Downloading Source Media Parts from Artifact
+        if: success() && env.runID4Art == ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: /data/app/artifact/
+          # github-token: ${{ secrets.GH_TOKEN }}
+          # run-id: ${{ github.run_id }}
+      - name: Try Downloading Source Media Parts from Artifact @ runID4Art
+        if: success() && env.runID4Art != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact
+          path: /data/app/artifact/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4Art }}
+      - name: Download Scene JSON from Artifact
+        if: env.runID4Art == ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: scenejson
+          path: /data/app/tmp/
+          #> /data/app/tmp/scenes.json
+      - name: Download Scene JSON from Artifact @ runID4Art
+        if: env.runID4Art != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: scenejson
+          path: /data/app/tmp/
+          #> /data/app/tmp/scenes.json
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4Art }}
+      - name: Login to Docker Hub
+        if: success()
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Prepare Docker Container
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x07.testContainer.sh x53.dockerPrep.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x53.dockerPrep.sh || exit 1
+          if [[ ${AbortSwitch} == "QuickExit" ]]; then exit 1; fi
+          eval 'set -o history' 2>/dev/null
+        env:
+          jobIdentifier: "merger"
+      - name: SSIMULACRA2 Score Generation v2
+        if: success()
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x92.scoreTesterZ.sh x97.videoScoreCalculatorV2A.py; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          # SSIMULACRA2 Tester for Final Encoded Video
+          source /data/x92.scoreTesterZ.sh || exit 1
+          eval 'set -o history' 2>/dev/null
+        env:
+          PASS_TYPE: "F4S7"
+

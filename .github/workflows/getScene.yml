@@ -1,4 +1,4 @@
-name: SceneDetector v4x
+name: SceneDetector v5x
 
 run-name: "ScDetect - ${{ inputs.ShowName }} @ ${{ inputs.EpLabels }}"
 
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       ShowName:
-        description: "Anime/Movie/Show Name, @VapourCoderZ4x_Hash/x01.showList.txt"
+        description: "[Anime|Movie|Show] Name, @VapourCoderZ5x_Hash/x01.showList.txt"
         required: true
         type: string
       EpLabels:
@@ -15,17 +15,19 @@ on:
         type: string
         default: "S01E01"
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), x=someVal / minSCLenth=36 / QuickExit=1 / Probe=false / SCDebug=true / slimRoot=1"
+        description: "Env Overrides (pipe-separated), minSCLenth=36 | Probe=false | SCDebug=true | slimRoot=1 | SafeDockerTag=xxx.xxx"
         type: string
         required: false
 
 env:
+  QuickExit: true
   StateZ: "SCD"
   ShowName: ${{ github.event.inputs.ShowName }}
   EpLabels: ${{ github.event.inputs.EpLabels }}
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
-  VapourScriptAddr: "https://gist.github.com/rokibhasansagar/${{ secrets.VapourCoderZ4x_Hash }}"
+  VapourScriptAddr: "https://gist.github.com/rokibhasansagar/${{ secrets.VapourCoderZ5x_Hash }}"
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
+  VapourDockerImage: "fr3akyphantom/xvapoursynth-av1an-rt"
 
 jobs:
   scdetect:
@@ -63,22 +65,36 @@ jobs:
       - name: Maximize Space at /data
         run: |
           # Execute Script Stealthly
-          eval 'set -eo pipefail' 2>/dev/null
-          eval 'set +o history' 2>/dev/null
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
           export ROOT_RESERVE_MB=${ROOT_RESERVE_MB:-8192} TEMP_RESERVE_MB=${TEMP_RESERVE_MB:-512} SWAP_SIZE_MB=${SWAP_SIZE_MB:-12288}
           export cleanerAddr="https://gist.github.com/rokibhasansagar/27271d28d0d6fa2d4a8d3b6253ffb5cd"
           export cleanRef=$(git ls-remote -q "${cleanerAddr}" HEAD | awk '{print $1}')
           curl -sL --retry 8 --retry-connrefused "${cleanerAddr}/raw/${cleanRef}/maximize.space.sh" | bash 2>/dev/null
           eval 'set -o history' 2>/dev/null
+      - name: Prepare Docker Container
+        working-directory: /data
+        run: |
+          # Execute Script Stealthly
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
+          # Get GIST latest Revision number
+          export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
+          echo -e "latestRevision == ${latestRevision}\n"
+          for sc in x07.testContainer.sh x53.dockerPrep.sh; do
+            curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
+          done
+          source /data/x53.dockerPrep.sh || exit 1
+          if [[ ${AbortSwitch} == "QuickExit" ]]; then exit 1; fi
+          eval 'set -o history' 2>/dev/null
+        env:
+          jobIdentifier: "scdetector"
       - name: Run SCDetect Script
         working-directory: /data
         run: |
           # Execute Script Stealthly
-          eval 'set -eo pipefail' 2>/dev/null
-          eval 'set +o history' 2>/dev/null
+          eval 'set -eo pipefail' 2>/dev/null && eval 'set +o history' 2>/dev/null
           export latestRevision=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo -e "latestRevision == ${latestRevision}\n"
-          for sc in x99.scriptPatcher.sh x07.testContainer.sh x09.sceneDetector.sh x13.filterGen.sh; do
+          for sc in x99.scriptPatcher.sh x09.sceneDetector{,.dscript}.sh x13.filterGen.sh; do
             curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestRevision}/${sc}" -O
           done
           source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
