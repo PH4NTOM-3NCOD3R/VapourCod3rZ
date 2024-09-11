@@ -27,7 +27,7 @@ on:
         options: ["3", "4", "5", "6", "7", "8"]
         default: "5"
       QScale:
-        description: "F4S7 Quant/CRF Value, 25.0 ~ 50.0"
+        description: "F4S7 Quant/CRF Value, float(25.0 ~ 50.0)"
         required: true
         type: number
       F4S7Qual:
@@ -42,10 +42,10 @@ on:
         type: string
         default: "720p"
       EncPhase:
-        description: "Encoding Phase, 1 / 2[ab] / 3[abc] / 4[abcd] / 5[abcde]"
+        description: "Encoding Phase, 1 / 2[ab] / 3[abc] / 4[abcd]"
         required: true
         type: choice
-        options: ["1", "2a", "2b", "3a", "3b", "3c", "4a", "4b", "4c", "4d", "5a", "5b", "5c", "5d", "5e"]
+        options: ["1", "2a", "2b", "3a", "3b", "3c", "4a", "4b", "4c", "4d"]
       MergeOnly:
         description: "Only Merge Previously Encoded Scenes"
         required: false
