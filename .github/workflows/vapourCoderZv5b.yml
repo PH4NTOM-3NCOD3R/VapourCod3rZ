@@ -27,7 +27,7 @@ on:
         options: ["1", "2", "3", "4", "5"]
         default: "2"
       QScale:
-        description: "Optimal Quant/CRF Value, int(25 ~ 50)"
+        description: "Optimal Quant/CRF Value, int(28 ~ 45)"
         required: true
         type: number
       VidRes:
@@ -282,6 +282,16 @@ jobs:
           path: /data/app/artifact/
           github-token: ${{ secrets.GH_TOKEN }}
           run-id: ${{ env.runID4Flt }}
+      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+        if: env.Skipper != 'true' && env.runID4Flt != '' && env.rescaleFilteredVid == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{env.EpLabel}}.${{env.fltResH}}p.${{env.ChunkID}}.ffv1"
+          #> ${FilteredVideoChunk} | "${ShowName}.${EpLabel}.${fltResH}p.vapourfiltered.${ChunkID}.ffv1.mkv"
+          path: /data/app/artifact/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4Flt }}
       - name: ChunkID1 Filtered Scene PreCheck
         if: env.Skipper != 'true'
         run: |
@@ -360,8 +370,6 @@ jobs:
           export ChunkID=${ChunkIDs//*+}
           export ChunkID=$(printf %.4d ${ChunkID})
           echo "ChunkID=${ChunkID}" >>$GITHUB_ENV
-        env:
-          Skipper: "false"
       - name: VapourChecker - PreEncCheck for Chunk ${{env.ChunkID}}/${{env.matrixJobCount}}
         if: env.DualChunk == 'true'
         working-directory: /data
@@ -387,6 +395,16 @@ jobs:
           path: /data/app/artifact/
           github-token: ${{ secrets.GH_TOKEN }}
           run-id: ${{ env.runID4Flt }}
+      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+        if: env.DualChunk == 'true' && ( env.Skipper != 'true' && env.runID4Flt != '' ) && env.rescaleFilteredVid == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: "${{env.EpLabel}}.${{env.fltResH}}p.${{env.ChunkID}}.ffv1"
+          #> ${FilteredVideoChunk} | "${ShowName}.${EpLabel}.${fltResH}p.vapourfiltered.${ChunkID}.ffv1.mkv"
+          path: /data/app/artifact/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4Flt }}
       - name: ChunkID2 Filtered Scene PreCheck
         if: env.DualChunk == 'true' && env.Skipper != 'true'
         run: |
@@ -401,7 +419,7 @@ jobs:
             echo "ffv1Generator=true" >>$GITHUB_ENV
           fi
       - name: Download Source Media Parts from Artifact
-        if: env.DualChunk == 'true' && env.HasSourceVideo != 'true' && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art == ''
+        if: ( env.DualChunk == 'true' && env.HasSourceVideo != 'true' ) && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art == ''
         uses: actions/download-artifact@v4
         with:
           name: artifact
@@ -409,7 +427,7 @@ jobs:
           # github-token: ${{ secrets.GH_TOKEN }}
           # run-id: ${{ github.run_id }}
       - name: Download Source Media Parts from Artifact @ runID4Art
-        if: env.DualChunk == 'true' && env.HasSourceVideo != 'true' && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art != ''
+        if: ( env.DualChunk == 'true' && env.HasSourceVideo != 'true' ) && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art != ''
         uses: actions/download-artifact@v4
         with:
           name: artifact
