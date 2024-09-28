@@ -65,7 +65,7 @@ env:
   CustomEnvs: ${{ github.event.inputs.CustomEnvs }}
   VapourScriptAddr: "https://gist.github.com/rokibhasansagar/${{ secrets.VapourCoderZ5x_Hash }}"
   RCLONE_CONFIG_HASH: ${{ secrets.RCLONE_CONFIG_HASH }}
-  VapourDockerImage: "fr3akyphantom/xvapoursynth-av1an-rt"
+  VapourDockerImage: "fr3akyphantom/vapoursynth-av1an-runtime"
 
 jobs:
   generator:
