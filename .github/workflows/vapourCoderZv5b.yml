@@ -27,9 +27,10 @@ on:
         options: ["1", "2", "3", "4", "5"]
         default: "2"
       QScale:
-        description: "Optimal Quant/CRF Value, int(28 ~ 45)"
+        description: "ZoneOpt Base CRF Value, int(32 ~ 40)"
         required: true
         type: number
+        default: 35
       VidRes:
         description: "VidRes, 854x|480p / 960x|540p / 1024x|1024x576|576p / 1280x|720p / 1920x|1080p"
         required: true
@@ -46,7 +47,7 @@ on:
         type: boolean
         default: false
       CustomEnvs:
-        description: "Env Overrides (pipe-separated), minSCLenth=36 | LiveAction=true | ForceRecode=true | MatrixOvr=???[+???] | FILTER=false | slimRoot=1 | SafeDockerTag=xxx.xxx | runID4Art/runID4Flt=631929376"
+        description: "Env Overrides (pipe-separated), minSCLenth=36 | LiveAction/ForceRecode=true | MatrixOvr=???[+???] | FILTER=false | slimRoot=1 | SafeDockerTag=xxx.xxx | runID4Art/runID4Flt/runID4localVS=631929376"
         type: string
         required: false
 
@@ -69,7 +70,7 @@ env:
 
 jobs:
   generator:
-    name: "Job Matrix Preparation"
+    name: "Matrix Data Preparation"
     if: github.event.inputs.MergeOnly != 'true'
     runs-on: ubuntu-22.04
 
@@ -129,6 +130,15 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Download localVS.tar.gz from [runID4localVS //> Artifact]
+        if: env.runID4localVS != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: localVS
+          path: /data/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4localVS }}
       - name: Prepare Docker Container for Artifact
         working-directory: /data
         run: |
@@ -143,7 +153,7 @@ jobs:
         env:
           jobIdentifier: "generator"
       - name: Upload localVS.tar.gz as Artifact
-        if: success()
+        if: success() && env.runID4localVS == ''
         uses: actions/upload-artifact@v4
         with:
           name: localVS
@@ -212,7 +222,17 @@ jobs:
           export cleanRef=$(git ls-remote -q "${cleanerAddr}" HEAD | awk '{print $1}')
           curl -sL --retry 8 --retry-connrefused "${cleanerAddr}/raw/${cleanRef}/maximize.space.sh" | bash 2>/dev/null
           eval 'set -o history' 2>/dev/null
+      - name: Download localVS.tar.gz from [runID4localVS //> Artifact]
+        if: env.runID4localVS != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: localVS
+          path: /data/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4localVS }}
       - name: Download localVS.tar.gz from Artifact
+        if: env.runID4localVS == ''
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
@@ -269,7 +289,7 @@ jobs:
           source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
           source /data/x61.vapourCheck.sh || exit 1
           eval 'set -o history' 2>/dev/null
-      - name: Try Downloading Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+      - name: Try Downloading Filtered Scene (ffv1 mkv) from [runID4Flt //> Artifact]
         if: env.Skipper != 'true' && env.runID4Flt != ''
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -279,7 +299,7 @@ jobs:
           path: /data/app/artifact/
           github-token: ${{ secrets.GH_TOKEN }}
           run-id: ${{ env.runID4Flt }}
-      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from [runID4Flt //> Artifact]
         if: env.Skipper != 'true' && env.runID4Flt != '' && env.rescaleFilteredVid == 'true'
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -310,7 +330,7 @@ jobs:
           path: /data/app/artifact/
           # github-token: ${{ secrets.GH_TOKEN }}
           # run-id: ${{ github.run_id }}
-      - name: Download Source Media Parts from Artifact @ runID4Art
+      - name: Download Source Media Parts from [runID4Art //> Artifact]
         if: ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art != ''
         uses: actions/download-artifact@v4
         with:
@@ -378,7 +398,7 @@ jobs:
           source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
           source /data/x61.vapourCheck.sh || exit 1
           eval 'set -o history' 2>/dev/null
-      - name: Try Downloading Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+      - name: Try Downloading Filtered Scene (ffv1 mkv) from [runID4Flt //> Artifact]
         if: env.IterationCount >= '2' && ( env.Skipper != 'true' && env.runID4Flt != '' )
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -388,7 +408,7 @@ jobs:
           path: /data/app/artifact/
           github-token: ${{ secrets.GH_TOKEN }}
           run-id: ${{ env.runID4Flt }}
-      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from [runID4Flt //> Artifact]
         if: env.IterationCount >= '2' && ( env.Skipper != 'true' && env.runID4Flt != '' ) && env.rescaleFilteredVid == 'true'
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -419,7 +439,7 @@ jobs:
           path: /data/app/artifact/
           # github-token: ${{ secrets.GH_TOKEN }}
           # run-id: ${{ github.run_id }}
-      - name: Download Source Media Parts from Artifact @ runID4Art
+      - name: Download Source Media Parts from [runID4Art //> Artifact]
         if: ( env.IterationCount >= '2' && env.HasSourceVideo != 'true' ) && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art != ''
         uses: actions/download-artifact@v4
         with:
@@ -487,7 +507,7 @@ jobs:
           source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
           source /data/x61.vapourCheck.sh || exit 1
           eval 'set -o history' 2>/dev/null
-      - name: Try Downloading Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+      - name: Try Downloading Filtered Scene (ffv1 mkv) from [runID4Flt //> Artifact]
         if: env.IterationCount >= '3' && ( env.Skipper != 'true' && env.runID4Flt != '' )
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -497,7 +517,7 @@ jobs:
           path: /data/app/artifact/
           github-token: ${{ secrets.GH_TOKEN }}
           run-id: ${{ env.runID4Flt }}
-      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from [runID4Flt //> Artifact]
         if: env.IterationCount >= '3' && ( env.Skipper != 'true' && env.runID4Flt != '' ) && env.rescaleFilteredVid == 'true'
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -528,7 +548,7 @@ jobs:
           path: /data/app/artifact/
           # github-token: ${{ secrets.GH_TOKEN }}
           # run-id: ${{ github.run_id }}
-      - name: Download Source Media Parts from Artifact @ runID4Art
+      - name: Download Source Media Parts from [runID4Art //> Artifact]
         if: ( env.IterationCount >= '3' && env.HasSourceVideo != 'true' ) && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art != ''
         uses: actions/download-artifact@v4
         with:
@@ -596,7 +616,7 @@ jobs:
           source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
           source /data/x61.vapourCheck.sh || exit 1
           eval 'set -o history' 2>/dev/null
-      - name: Try Downloading Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+      - name: Try Downloading Filtered Scene (ffv1 mkv) from [runID4Flt //> Artifact]
         if: env.IterationCount >= '4' && ( env.Skipper != 'true' && env.runID4Flt != '' )
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -606,7 +626,7 @@ jobs:
           path: /data/app/artifact/
           github-token: ${{ secrets.GH_TOKEN }}
           run-id: ${{ env.runID4Flt }}
-      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from Artifact @ runID4Flt
+      - name: Try Downloading Scaled Filtered Scene (ffv1 mkv) from [runID4Flt //> Artifact]
         if: env.IterationCount >= '4' && ( env.Skipper != 'true' && env.runID4Flt != '' ) && env.rescaleFilteredVid == 'true'
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -637,7 +657,7 @@ jobs:
           path: /data/app/artifact/
           # github-token: ${{ secrets.GH_TOKEN }}
           # run-id: ${{ github.run_id }}
-      - name: Download Source Media Parts from Artifact @ runID4Art
+      - name: Download Source Media Parts from [runID4Art //> Artifact]
         if: ( env.IterationCount >= '4' && env.HasSourceVideo != 'true' ) && ( env.Skipper != 'true' && env.ffv1Generator != 'false' ) && env.runID4Art != ''
         uses: actions/download-artifact@v4
         with:
@@ -756,7 +776,7 @@ jobs:
           path: /data/app/artifact/
           # github-token: ${{ secrets.GH_TOKEN }}
           # run-id: ${{ github.run_id }}
-      - name: Download Source Media Parts from Artifact @ runID4Art
+      - name: Download Source Media Parts from [runID4Art //> Artifact]
         if: success() && env.runID4Art != ''
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -773,7 +793,7 @@ jobs:
           name: scenejson
           path: /data/app/tmp/
           #> /data/app/tmp/scenes.json
-      - name: Download Scene JSON from Artifact @ runID4Art
+      - name: Download Scene JSON from [runID4Art //> Artifact]
         if: env.runID4Art != ''
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -789,6 +809,15 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Download localVS.tar.gz from [runID4localVS //> Artifact]
+        if: env.runID4localVS != ''
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: localVS
+          path: /data/
+          github-token: ${{ secrets.GH_TOKEN }}
+          run-id: ${{ env.runID4localVS }}
       - name: Prepare Docker Container
         working-directory: /data
         run: |
