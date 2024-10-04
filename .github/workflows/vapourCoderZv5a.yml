@@ -84,6 +84,11 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       matrixJobCount: ${{ steps.set-matrix.outputs.matrixJobCount }}
       streamdar: ${{ steps.set-matrix.outputs.streamdar }}
+      VidResH: ${{ steps.set-matrix.outputs.VidResH }}
+      VidResW: ${{ steps.set-matrix.outputs.VidResW }}
+      SourceHeight: ${{ steps.set-matrix.outputs.SourceHeight }}
+      SourceWidth: ${{ steps.set-matrix.outputs.SourceWidth }}
+      framerate: ${{ steps.set-matrix.outputs.framerate }}
 
     steps:
       - uses: actions/checkout@v4
@@ -124,12 +129,13 @@ jobs:
           export latestGistRev=$(git ls-remote -q "${VapourScriptAddr}" HEAD | awk '{print $1}')
           echo "latestGistRev=${latestGistRev}" >>$GITHUB_ENV
           echo -e "latestGistRev == ${latestGistRev}\n"
-          for sc in x99.scriptPatcher.sh x23.matrixGenZ.sh x41.splitArtGen.sh; do
+          for sc in x99.scriptPatcher.sh x23.matrixGenZ.sh x41.splitArtGen.sh x43.prepareJobVars.sh; do
             curl -sL --retry 5 --retry-connrefused "${VapourScriptAddr}/raw/${latestGistRev}/${sc}" -O
           done
           source /data/x99.scriptPatcher.sh && rm /data/x99.scriptPatcher.sh
           source /data/x23.matrixGenZ.sh || exit 1
           source /data/x41.splitArtGen.sh || exit 1
+          source /data/x43.prepareJobVars.sh || exit 1
           eval 'set -o history' 2>/dev/null
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -196,6 +202,11 @@ jobs:
     env:
       ChunkIDs: ${{ matrix.ChunkIDs }}
       streamdar: ${{ needs.generator.outputs.streamdar }}
+      VidResH: ${{ needs.generator.outputs.VidResH }}
+      VidResW: ${{ needs.generator.outputs.VidResW }}
+      SourceHeight: ${{ needs.generator.outputs.SourceHeight }}
+      SourceWidth: ${{ needs.generator.outputs.SourceWidth }}
+      framerate: ${{ needs.generator.outputs.framerate }}
       matrixJobCount: ${{ needs.generator.outputs.matrixJobCount }}
       SourceName: ${{ github.event.inputs.ShowName }}.${{ github.event.inputs.EpLabel }}.SOURCE.mkv
 
@@ -720,6 +731,10 @@ jobs:
 
     env:
       matrixJobCount: ${{ needs.generator.outputs.matrixJobCount }}
+      VidResH: ${{ needs.generator.outputs.VidResH }}
+      VidResW: ${{ needs.generator.outputs.VidResW }}
+      SourceHeight: ${{ needs.generator.outputs.SourceHeight }}
+      SourceWidth: ${{ needs.generator.outputs.SourceWidth }}
 
     steps:
       - uses: actions/checkout@v4
