@@ -57,6 +57,7 @@ env:
   SelfRunID: ${{ github.run_id }}
   ShowName: ${{ github.event.inputs.ShowName }}
   EpLabel: ${{ github.event.inputs.EpLabel }}
+  SourceName: ${{ github.event.inputs.ShowName }}.${{ github.event.inputs.EpLabel }}.SOURCE.mkv
   Encod3r: ${{ github.event.inputs.Encod3r }}
   EncPreset: ${{ github.event.inputs.EncPreset }}
   QScale: ${{ github.event.inputs.QScale }}
@@ -211,7 +212,6 @@ jobs:
       framerate: ${{ needs.generator.outputs.framerate }}
       Zonefile: ${{ needs.generator.outputs.Zonefile }}
       matrixJobCount: ${{ needs.generator.outputs.matrixJobCount }}
-      SourceName: ${{ github.event.inputs.ShowName }}.${{ github.event.inputs.EpLabel }}.SOURCE.mkv
 
     steps:
       - uses: actions/checkout@v4
